@@ -1,0 +1,21 @@
+name: Offline CI
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: node:24-bookworm-slim
+      options: --cpus 2 --memory 2g --pids-limit 256
+    env:
+      RAYON_NUM_THREADS: "2"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: npm ci --no-audit --no-fund
+      - run: npm test -- --maxWorkers=2
+      - run: npm run typecheck
+      - run: npm run build
