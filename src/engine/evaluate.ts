@@ -1,3 +1,6 @@
+// Evaluate diagnostic coverage and reactive motion for one simulated scenario.
+// Uses sensor.ts and geometry.ts, then returns the shared CompletedRun shape.
+// Reject invalid routes before dividing by route length to compute progress.
 import type { CompletedRun, CoverageMetrics, HazardFinding, Pose, Scenario, SensorConfig } from '../../shared/contracts';
 import { clearance, sweptContact } from './geometry';
 import { clamp, localPoint, routeLength, routePose } from './math';
@@ -27,7 +30,8 @@ function validate(s:Scenario,c:SensorConfig) {
   if(p.mode!=='ground'||s.route.length<2||s.route.length>32||s.hazards.length>16||c.sensors.length!==1)throw new Error('Unsupported ground scenario.');
   if(![p.radiusM,p.heightM,p.speedMps,p.brakingDecelerationMps2,p.controlLatencyS,p.clearanceMarginM].every(Number.isFinite)||p.radiusM<=0||p.heightM<2*p.radiusM||p.speedMps<=0||p.speedMps>3||p.brakingDecelerationMps2<=0||p.controlLatencyS<0||p.clearanceMarginM<0)throw new Error('Invalid platform dimensions or motion.');
   if(!sensor||![sensor.widthPx,sensor.heightPx,sensor.horizontalFovRad,sensor.minResolvableWidthPx,sensor.nearM,sensor.farM].every(Number.isFinite)||sensor.widthPx<16||sensor.widthPx>640||sensor.heightPx<16||sensor.heightPx>480||sensor.horizontalFovRad<=0||sensor.horizontalFovRad>=Math.PI||sensor.nearM<=0||sensor.farM<=sensor.nearM||sensor.minResolvableWidthPx<=0)throw new Error('Invalid sensor configuration.');
-  if(s.route.some(pose=>!pose.positionM.every(Number.isFinite)||Math.abs(pose.positionM[1]-s.route[0]!.positionM[1])>1e-6)||routeLength(s.route)>50)throw new Error('Use a level route shorter than 50 meters.');
+  const length=routeLength(s.route);
+  if(s.route.some(pose=>!pose.positionM.every(Number.isFinite)||Math.abs(pose.positionM[1]-s.route[0]!.positionM[1])>1e-6)||length<=0||length>50)throw new Error('Use a nonzero level route no longer than 50 meters.');
 }
 export async function evaluate(scenario:Scenario,config:SensorConfig,options:EvaluationOptions={}):Promise<Evaluation> {
   validate(scenario,config);
