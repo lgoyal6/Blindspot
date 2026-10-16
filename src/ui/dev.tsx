@@ -17,6 +17,10 @@ const bridge = createFixtureBridge({
   initialPath: window.location.pathname,
   syncHistory: true,
 });
+// Public preview opens on a useful completed sample. Local UI development
+// keeps the fresh-session state so each fixture can still be tested on demand.
+const publicDemo = import.meta.env.VITE_AUTHORING_ENABLED === "false";
+if (publicDemo) bridge.dev.loadPreset("completed-baseline");
 
 const PRESETS: ReadonlyArray<{ name: FixturePresetName; label: string }> = [
   { name: "fresh", label: "Fresh session" },
@@ -64,10 +68,17 @@ function FixturePanel({ state }: { state: AppState }) {
   const [, forceRender] = useState(0);
   const win = window as { __BLINDSPOT_FORCE_NO_WEBGL?: boolean };
   return (
-    <details className="bs-no-print" style={panelStyle}>
-      <summary style={{ cursor: "pointer", fontWeight: 700 }}>Fixture controls (dev preview only)</summary>
+    <details className="bs-no-print" style={panelStyle} open={publicDemo}>
+      <summary style={{ cursor: "pointer", fontWeight: 700 }}>
+        {publicDemo ? "Sample controls (fixture data)" : "Fixture controls (dev preview only)"}
+      </summary>
+      {publicDemo && (
+        <p style={{ margin: "8px 0 4px", lineHeight: 1.4 }}>
+          Sample data only. No live robot, sensor, operator, or evaluation is connected.
+        </p>
+      )}
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8, maxHeight: "60vh", overflowY: "auto" }}>
-        <span style={{ opacity: 0.7 }}>Load state</span>
+        <span style={{ opacity: 0.7 }}>{publicDemo ? "Load sample state" : "Load state"}</span>
         {PRESETS.map((preset) => (
           <button key={preset.name} type="button" style={devBtn} onClick={() => bridge.dev.loadPreset(preset.name)}>
             {preset.label}
