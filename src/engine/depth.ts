@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Pose, Scenario, StereoSensor } from '../../shared/contracts';
-import { analyticSampler, backProject, cameraPose, projectedCableWidth, type SensorFrame } from './sensor';
+import { BOUNDED_SAMPLE_SPACING_M,analyticSampler, backProject, cameraPose, intrinsics, projectedCableWidth, type SensorFrame } from './sensor';
+import { degradeStereoFrame, validateStereoModel, type StereoModel } from './stereo-model';
 import { localPoint, worldPoint } from './math';
 import { OcclusionIndex } from './occlusion';
 
@@ -17,13 +18,14 @@ export class DepthSensor {
   private camera:THREE.PerspectiveCamera;
   private occluders:OcclusionIndex;
   private analytic:ReturnType<typeof analyticSampler>;
-  constructor(private renderer:THREE.WebGLRenderer,private proxy:THREE.Scene,private scenario:Scenario,private sensor:StereoSensor) {
+  constructor(private renderer:THREE.WebGLRenderer,private proxy:THREE.Scene,private scenario:Scenario,private sensor:StereoSensor,private options:{stereo?:StereoModel;boundedSupport?:boolean}={}) {
+    if(options.stereo)validateStereoModel(options.stereo);
     this.target=new THREE.WebGLRenderTarget(sensor.widthPx,sensor.heightPx,{type:THREE.UnsignedByteType,format:THREE.RGBAFormat,depthBuffer:true,minFilter:THREE.NearestFilter,magFilter:THREE.NearestFilter});
     this.target.texture.colorSpace=THREE.NoColorSpace;this.bytes=new Uint8Array(sensor.widthPx*sensor.heightPx*4);
     const verticalFov=2*Math.atan(Math.tan(sensor.horizontalFovRad/2)*sensor.heightPx/sensor.widthPx);
     this.camera=new THREE.PerspectiveCamera(THREE.MathUtils.radToDeg(verticalFov),sensor.widthPx/sensor.heightPx,sensor.nearM,sensor.farM);
     this.proxy.updateMatrixWorld(true);this.occluders=new OcclusionIndex(proxy);
-    this.analytic=analyticSampler(scenario,sensor,(a,b,ignoreId)=>this.occluders.occluded(a,b,ignoreId),true);
+    this.analytic=analyticSampler(scenario,sensor,(a,b,ignoreId)=>this.occluders.occluded(a,b,ignoreId),true,!!options.stereo||!!options.boundedSupport,options.stereo?BOUNDED_SAMPLE_SPACING_M:0);
   }
   capture=(pose:Pose):SensorFrame=>{
     const c=cameraPose(pose,this.sensor);this.camera.position.set(...c.positionM);this.camera.quaternion.set(...c.orientation);this.camera.updateMatrixWorld(true);
@@ -42,13 +44,13 @@ export class DepthSensor {
       const wp=worldPoint(point,c),local=localPoint(wp,pose);if(local[1]<0.03||local[1]>this.scenario.platform.heightM)continue;
       const h=this.scenario.hazards[id-2];
       if(h){candidates.add(h.id);if(h.geometry.kind==='cable'&&projectedCableWidth(h.geometry.diameterM,depth,this.sensor)<this.sensor.minResolvableWidthPx)continue;}
-      frame.points.push({positionM:wp,...(h?{hazardId:h.id}:{})});
+      frame.points.push({positionM:wp,...(h?{hazardId:h.id}:{}),...((this.options.stereo||this.options.boundedSupport)?{supportRadiusM:Math.SQRT2*depth/(2*intrinsics(this.sensor).fx)}:{})});
     }
     // Exact cable candidates recover subpixel raster aliasing. Their rays still test proxy occlusion.
     const analytic=this.analytic(pose);
     for(const id of analytic.candidates)candidates.add(id);
     for(const point of analytic.points)if(this.scenario.hazards.find(h=>h.id===point.hazardId)?.geometry.kind==='cable')frame.points.push(point);
-    frame.candidates=[...candidates];return frame;
+    frame.candidates=[...candidates];return this.options.stereo?degradeStereoFrame(frame,pose,this.sensor,this.options.stereo):frame;
   };
   dispose(){this.target.dispose();}
 }
