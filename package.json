@@ -10,6 +10,7 @@
     "dev:engine": "vite --mode engine --open /engine.html",
     "build": "vite build",
     "build:ui": "vite build --mode ui",
+    "build:public": "vite build --mode public",
     "build:engine": "vite build --mode engine",
     "preview": "vite preview",
     "preview:ui": "vite preview --mode ui",

@@ -1,0 +1,82 @@
+/* Public demo layout for the saved Blindspot replay and report.
+ * Shared workspace styles own the viewport, playback, and evidence panels.
+ * This file only sets the page layout and small-screen behavior.
+ */
+.bs-public-demo {
+  display: grid;
+  gap: var(--bs-s4);
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: var(--bs-s5);
+}
+
+.bs-public-demo-header,
+.bs-public-demo-context,
+.bs-public-demo-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--bs-s3);
+  flex-wrap: wrap;
+}
+
+.bs-public-demo-header h1 {
+  margin: 0;
+  font-size: var(--bs-fs-title);
+}
+
+.bs-public-demo-header p,
+.bs-public-demo-context strong {
+  overflow-wrap: anywhere;
+}
+
+.bs-public-demo-eyebrow,
+.bs-public-demo-context span {
+  color: var(--bs-text-secondary);
+  font-family: var(--bs-font-mono);
+  font-size: var(--bs-fs-meta);
+  text-transform: uppercase;
+}
+
+.bs-public-demo-boundary,
+.bs-public-demo-limit {
+  margin: 0;
+  padding: var(--bs-s3);
+  border-left: 4px solid var(--bs-amber);
+  background: var(--bs-surface);
+}
+
+.bs-public-demo-limit {
+  color: var(--bs-text-secondary);
+}
+
+.bs-public-demo-context > div {
+  display: grid;
+  gap: var(--bs-s1);
+  min-width: min(100%, 220px);
+}
+
+.bs-public-demo .bs-viewport-shell {
+  min-width: 0;
+  min-height: 0;
+  aspect-ratio: 16 / 9;
+}
+
+.bs-public-demo .bs-viewport-overlay-row {
+  flex-wrap: wrap;
+}
+
+.bs-public-demo .bs-viewport-label {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .bs-public-demo {
+    padding: var(--bs-s3);
+  }
+
+  .bs-public-demo-header {
+    align-items: flex-start;
+  }
+}
