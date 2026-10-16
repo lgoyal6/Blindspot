@@ -1,0 +1,869 @@
+{
+  "schema": "blindspot-stereo-prospective-protocol-3",
+  "locked_utc": "2026-10-16T00:07:50.563865+00:00",
+  "before_outcome_collection": true,
+  "base": "b7bce7e566c4c779851161c736eb9f6ddaf1d929",
+  "versions": {
+    "legacy_model": "passive-stereo-1",
+    "new_model": "bounded-disparity-3",
+    "legacy_controller": "ground-stereo-1.0.0",
+    "new_controller": "bounded-capsule-control-2",
+    "scene_generator": "scene-gen-1",
+    "new_engine": "ground-stereo-3.0.0 with distinct legacy/conservative build identity"
+  },
+  "parameters": {
+    "disparity_step_px": 0.25,
+    "matching_error_bound_px": 0.25,
+    "total_disparity_bound_px": 0.375,
+    "maximum_depth_interval_width_m": 0.25,
+    "sensor_period_s": 0.05,
+    "integrator_step_s": 0.02,
+    "sensing_horizon_bound_s": 0.07,
+    "candidate_spacing_m": 0.005,
+    "diagnostic_step_m": 0.005
+  },
+  "selection": "Diagnosis-informed v3 after exposedv2sampling/version failures. New exact non-null geometries must differ from original and all v2-exposed inputs. Same generator/families; not broad out-of-distribution or physical generalization. No width/disparity/controller threshold retuning.",
+  "geometries": {
+    "tuning": {
+      "families": [
+        "perpendicular",
+        "full_occlusion",
+        "null"
+      ],
+      "seeds": [
+        17001,
+        17002
+      ]
+    },
+    "held_out": {
+      "families": [
+        "perpendicular",
+        "oblique",
+        "elevated",
+        "full_occlusion",
+        "partial_occlusion",
+        "null",
+        "off_route"
+      ],
+      "seeds": [
+        18001,
+        18002,
+        18003,
+        18004
+      ]
+    },
+    "must_not_alias_historical_scenes": true,
+    "unit": "Canonical cable/box geometry. Distinct family/seed cases with identical geometry share a cluster; null controls are repeated by design.",
+    "alias_policy": "No non-null tuning/held-out scene may duplicate a historical or another prospective positive geometry. Null scenes intentionally reuse the no-obstacle control and are not claimed novel."
+  },
+  "factors": {
+    "diameters_mm": [
+      8,
+      24,
+      48
+    ],
+    "resolutions_px": [
+      160,
+      320
+    ],
+    "width_thresholds_px": [
+      1,
+      2
+    ],
+    "baselines_mm": [
+      60,
+      120
+    ]
+  },
+  "arms": [
+    {
+      "id": "legacy",
+      "model": "passive-stereo-1",
+      "controller": "ground-stereo-1.0.0",
+      "baseline_dimension": "diagnostic only, evaluated once per other factor cell"
+    },
+    {
+      "id": "stereo_legacy_control",
+      "model": "bounded-disparity-3",
+      "controller": "ground-stereo-1.0.0"
+    },
+    {
+      "id": "stereo_conservative_control",
+      "model": "bounded-disparity-3",
+      "controller": "bounded-capsule-control-2"
+    }
+  ],
+  "planned_counts": {
+    "tuning_geometries": 6,
+    "held_out_geometries": 28,
+    "total_geometries": 34,
+    "legacy_cells": 408,
+    "new_model_cells_per_controller": 816,
+    "total_cells": 2040,
+    "total_geometry_cases": 34,
+    "total_geometry_clusters": 29,
+    "tuning_geometry_clusters": 5,
+    "held_out_geometry_clusters": 25,
+    "positive_held_out_geometry_clusters": 24
+  },
+  "historical_regression": "Original1440defaultmodel must retain exact deterministic digest and original33misses. Oldv2prospective rows and24collisions are exposed diagnostics, never validation forv3.",
+  "correctness_controls": [
+    "Invalid/zero baseline rejected, no scored output.",
+    "Invalid or unbounded disparity/depth intervals rejected.",
+    "Known planar depths inside accepted intervals across both baselines; interval tightening with baseline on prespecified paired planes.",
+    "Subpixel-width and full-occlusion returns absent; null/off-route runs cannot acquire fabricated obstacles.",
+    "Meaningful valid detections and finite braking stops; truly late or absent returns can collide.",
+    "Independent swept/closed-form truth-contact oracle; controller cannot consume oracle contact locations.",
+    "Mutants ignoring width, baseline or support bounds must be caught.",
+    "Renderer plane/cable controls use real DepthSensor and explicit model wrapper, not mocked WebGL.",
+    "Three v2-exposed regressions must fail on the preserved pre-fix source and pass after repair without weakening assertions or changing their geometry."
+  ],
+  "outcomes": [
+    "Diagnostic coverage/late/miss with geometric encounter denominator.",
+    "Reactive collisions/near misses and route progress.",
+    "Stops and false-stop counts/denominators using saved decision corridor.",
+    "Depth interval rejection/acceptance and actual baseline-dependent detector outcomes.",
+    "Runtime and deterministic repeatability."
+  ],
+  "analysis": {
+    "paired_unit": "Canonical cable/box geometry, averaged over factor cells and any identical negative-control replicas before bootstrap.",
+    "bootstrap_replicates": 10000,
+    "bootstrap_seed": 271828,
+    "confidence": 0.95,
+    "scope": "Finite synthetic family/seed distribution, four held-out seeds per family; do not claim real sensor reliability.",
+    "retain_all_losing_axes": true,
+    "no_required_performance_winner": true,
+    "correctness_is_hard_gate": true,
+    "compute_limit": "V3 uses more candidate and diagnostic evaluations than legacy ideal-depth. No equal-compute or speed improvement claim. Controller arms share identical diagnostic frames and model parameters."
+  },
+  "renderer_subset": "One held-out seed18001 per seven families,8/48mm,160/320px,width1,bothbaselines plus known-depth planes and visible/occluded control. No claim about all seeds or physical cameras.",
+  "repetition": "Reconstruct all summaries from retained raw records and rerun prespecified first24heldoutcells for deterministic identity.",
+  "external_gates": [
+    "Physical named-camera calibration and noise residuals",
+    "Hardware timing/safety and independent physical obstacles",
+    "Live provider/Convex deployment and external consumer adoption"
+  ],
+  "resource_gate": ">=20percent memory_pressurefree; sharedrun_heavylock; <=2testworkers; containers<=2GB/2CPUs",
+  "amendment": {
+    "before_v3_outcome_collection": true,
+    "reason": "Repair finite cable/diagnostic aliasing and controller identity after three actual failing regressions. Bounded5mmcandidates and5mmdiagnostic traversal; cap4096subdivisions. Originalideal-depthdefaults unchanged. Identical null controls remain one geometry cluster.",
+    "prior_sha256": "c382023b8f7d51ea75bbbfcd466d652ddd8c00a06741b62bc7e152b06675649b",
+    "adverse_raw_sha256": "28128835230688f32df45eebe5c7905acaa8bd1ff587361f8b169eb149efae83"
+  },
+  "prior_exposed_geometry_cases": [
+    {
+      "boxes": [],
+      "cable": {
+        "endM": [
+          1.149,
+          0.252,
+          -8.811
+        ],
+        "startM": [
+          -1.251,
+          0.252,
+          -8.811
+        ]
+      },
+      "family": "perpendicular",
+      "sceneId": "tuning-perpendicular-15001",
+      "seed": 15001,
+      "split": "tuning"
+    },
+    {
+      "boxes": [],
+      "cable": {
+        "endM": [
+          1.178,
+          0.353,
+          -3.679
+        ],
+        "startM": [
+          -1.222,
+          0.353,
+          -3.679
+        ]
+      },
+      "family": "perpendicular",
+      "sceneId": "tuning-perpendicular-15002",
+      "seed": 15002,
+      "split": "tuning"
+    },
+    {
+      "boxes": [
+        {
+          "centerM": [
+            0,
+            0.6,
+            -3.329
+          ],
+          "sizeM": [
+            3.2,
+            1.2,
+            1.079
+          ]
+        }
+      ],
+      "cable": {
+        "endM": [
+          1.2,
+          0.475,
+          -4.169
+        ],
+        "startM": [
+          -1.2,
+          0.475,
+          -4.169
+        ]
+      },
+      "family": "full_occlusion",
+      "sceneId": "tuning-full_occlusion-15001",
+      "seed": 15001,
+      "split": "tuning"
+    },
+    {
+      "boxes": [
+        {
+          "centerM": [
+            0,
+            0.6,
+            -4.878
+          ],
+          "sizeM": [
+            3.2,
+            1.2,
+            0.982
+          ]
+        }
+      ],
+      "cable": {
+        "endM": [
+          1.2,
+          0.232,
+          -5.669
+        ],
+        "startM": [
+          -1.2,
+          0.232,
+          -5.669
+        ]
+      },
+      "family": "full_occlusion",
+      "sceneId": "tuning-full_occlusion-15002",
+      "seed": 15002,
+      "split": "tuning"
+    },
+    {
+      "boxes": [],
+      "cable": null,
+      "family": "null",
+      "sceneId": "tuning-null-15001",
+      "seed": 15001,
+      "split": "tuning"
+    },
+    {
+      "boxes": [],
+      "cable": null,
+      "family": "null",
+      "sceneId": "tuning-null-15002",
+      "seed": 15002,
+      "split": "tuning"
+    },
+    {
+      "boxes": [],
+      "cable": {
+        "endM": [
+          1.013,
+          0.437,
+          -4.763
+        ],
+        "startM": [
+          -1.387,
+          0.437,
+          -4.763
+        ]
+      },
+      "family": "perpendicular",
+      "sceneId": "held_out-perpendicular-16001",
+      "seed": 16001,
+      "split": "held_out"
+    },
+    {
+      "boxes": [],
+      "cable": {
+        "endM": [
+          1,
+          0.318,
+          -4.193
+        ],
+        "startM": [
+          -1.4,
+          0.318,
+          -4.193
+        ]
+      },
+      "family": "perpendicular",
+      "sceneId": "held_out-perpendicular-16002",
+      "seed": 16002,
+      "split": "held_out"
+    },
+    {
+      "boxes": [],
+      "cable": {
+        "endM": [
+          1.329,
+          0.42,
+          -3.986
+        ],
+        "startM": [
+          -1.071,
+          0.42,
+          -3.986
+        ]
+      },
+      "family": "perpendicular",
+      "sceneId": "held_out-perpendicular-16003",
+      "seed": 16003,
+      "split": "held_out"
+    },
+    {
+      "boxes": [],
+      "cable": {
+        "endM": [
+          1.06,
+          0.248,
+          -6.149
+        ],
+        "startM": [
+          -1.34,
+          0.248,
+          -6.149
+        ]
+      },
+      "family": "perpendicular",
+      "sceneId": "held_out-perpendicular-16004",
+      "seed": 16004,
+      "split": "held_out"
+    },
+    {
+      "boxes": [],
+      "cable": {
+        "endM": [
+          1.122,
+          0.447,
+          -7.668
+        ],
+        "startM": [
+          -1.122,
+          0.447,
+          -6.818
+        ]
+      },
+      "family": "oblique",
+      "sceneId": "held_out-oblique-16001",
+      "seed": 16001,
+      "split": "held_out"
+    },
+    {
+      "boxes": [],
+      "cable": {
+        "endM": [
+          0.945,
+          0.265,
+          -7.924
+        ],
+        "startM": [
+          -0.945,
+          0.265,
+          -6.444
+        ]
+      },
+      "family": "oblique",
+      "sceneId": "held_out-oblique-16002",
+      "seed": 16002,
+      "split": "held_out"
+    },
+    {
+      "boxes": [],
+      "cable": {
+        "endM": [
+          0.69,
+          0.457,
+          -8.02
+        ],
+        "startM": [
+          -0.69,
+          0.457,
+          -6.056
+        ]
+      },
+      "family": "oblique",
+      "sceneId": "held_out-oblique-16003",
+      "seed": 16003,
+      "split": "held_out"
+    },
+    {
+      "boxes": [],
+      "cable": {
+        "endM": [
+          1.005,
+          0.221,
+          -2.573
+        ],
+        "startM": [
+          -1.005,
+          0.221,
+          -3.883
+        ]
+      },
+      "family": "oblique",
+      "sceneId": "held_out-oblique-16004",
+      "seed": 16004,
+      "split": "held_out"
+    },
+    {
+      "boxes": [],
+      "cable": {
+        "endM": [
+          1.2,
+          0.606,
+          -7.229
+        ],
+        "startM": [
+          -1.2,
+          0.606,
+          -7.229
+        ]
+      },
+      "family": "elevated",
+      "sceneId": "held_out-elevated-16001",
+      "seed": 16001,
+      "split": "held_out"
+    },
+    {
+      "boxes": [],
+      "cable": {
+        "endM": [
+          1.2,
+          0.059,
+          -4.516
+        ],
+        "startM": [
+          -1.2,
+          0.059,
+          -4.516
+        ]
+      },
+      "family": "elevated",
+      "sceneId": "held_out-elevated-16002",
+      "seed": 16002,
+      "split": "held_out"
+    },
+    {
+      "boxes": [],
+      "cable": {
+        "endM": [
+          1.2,
+          0.106,
+          -3.462
+        ],
+        "startM": [
+          -1.2,
+          0.106,
+          -3.462
+        ]
+      },
+      "family": "elevated",
+      "sceneId": "held_out-elevated-16003",
+      "seed": 16003,
+      "split": "held_out"
+    },
+    {
+      "boxes": [],
+      "cable": {
+        "endM": [
+          1.2,
+          0.634,
+          -5.61
+        ],
+        "startM": [
+          -1.2,
+          0.634,
+          -5.61
+        ]
+      },
+      "family": "elevated",
+      "sceneId": "held_out-elevated-16004",
+      "seed": 16004,
+      "split": "held_out"
+    },
+    {
+      "boxes": [
+        {
+          "centerM": [
+            0,
+            0.6,
+            -2.427
+          ],
+          "sizeM": [
+            3.2,
+            1.2,
+            1.061
+          ]
+        }
+      ],
+      "cable": {
+        "endM": [
+          1.2,
+          0.319,
+          -3.257
+        ],
+        "startM": [
+          -1.2,
+          0.319,
+          -3.257
+        ]
+      },
+      "family": "full_occlusion",
+      "sceneId": "held_out-full_occlusion-16001",
+      "seed": 16001,
+      "split": "held_out"
+    },
+    {
+      "boxes": [
+        {
+          "centerM": [
+            0,
+            0.6,
+            -4.304
+          ],
+          "sizeM": [
+            3.2,
+            1.2,
+            1.099
+          ]
+        }
+      ],
+      "cable": {
+        "endM": [
+          1.2,
+          0.457,
+          -5.154
+        ],
+        "startM": [
+          -1.2,
+          0.457,
+          -5.154
+        ]
+      },
+      "family": "full_occlusion",
+      "sceneId": "held_out-full_occlusion-16002",
+      "seed": 16002,
+      "split": "held_out"
+    },
+    {
+      "boxes": [
+        {
+          "centerM": [
+            0,
+            0.6,
+            -7.212
+          ],
+          "sizeM": [
+            3.2,
+            1.2,
+            1.335
+          ]
+        }
+      ],
+      "cable": {
+        "endM": [
+          1.2,
+          0.461,
+          -8.18
+        ],
+        "startM": [
+          -1.2,
+          0.461,
+          -8.18
+        ]
+      },
+      "family": "full_occlusion",
+      "sceneId": "held_out-full_occlusion-16003",
+      "seed": 16003,
+      "split": "held_out"
+    },
+    {
+      "boxes": [
+        {
+          "centerM": [
+            0,
+            0.6,
+            -3.453
+          ],
+          "sizeM": [
+            3.2,
+            1.2,
+            1.093
+          ]
+        }
+      ],
+      "cable": {
+        "endM": [
+          1.2,
+          0.381,
+          -4.299
+        ],
+        "startM": [
+          -1.2,
+          0.381,
+          -4.299
+        ]
+      },
+      "family": "full_occlusion",
+      "sceneId": "held_out-full_occlusion-16004",
+      "seed": 16004,
+      "split": "held_out"
+    },
+    {
+      "boxes": [
+        {
+          "centerM": [
+            0.932,
+            0.4,
+            -2.554
+          ],
+          "sizeM": [
+            0.4,
+            0.8,
+            0.4
+          ]
+        }
+      ],
+      "cable": {
+        "endM": [
+          0.989,
+          0.241,
+          -2.974
+        ],
+        "startM": [
+          -0.989,
+          0.241,
+          -4.334
+        ]
+      },
+      "family": "partial_occlusion",
+      "sceneId": "held_out-partial_occlusion-16001",
+      "seed": 16001,
+      "split": "held_out"
+    },
+    {
+      "boxes": [
+        {
+          "centerM": [
+            0.936,
+            0.4,
+            -5.221
+          ],
+          "sizeM": [
+            0.4,
+            0.8,
+            0.4
+          ]
+        }
+      ],
+      "cable": {
+        "endM": [
+          0.974,
+          0.404,
+          -5.619
+        ],
+        "startM": [
+          -0.974,
+          0.404,
+          -7.021
+        ]
+      },
+      "family": "partial_occlusion",
+      "sceneId": "held_out-partial_occlusion-16002",
+      "seed": 16002,
+      "split": "held_out"
+    },
+    {
+      "boxes": [
+        {
+          "centerM": [
+            0.804,
+            0.4,
+            -2.091
+          ],
+          "sizeM": [
+            0.4,
+            0.8,
+            0.4
+          ]
+        }
+      ],
+      "cable": {
+        "endM": [
+          1.078,
+          0.206,
+          -3.318
+        ],
+        "startM": [
+          -1.078,
+          0.206,
+          -4.372
+        ]
+      },
+      "family": "partial_occlusion",
+      "sceneId": "held_out-partial_occlusion-16003",
+      "seed": 16003,
+      "split": "held_out"
+    },
+    {
+      "boxes": [
+        {
+          "centerM": [
+            0.85,
+            0.4,
+            -3.181
+          ],
+          "sizeM": [
+            0.4,
+            0.8,
+            0.4
+          ]
+        }
+      ],
+      "cable": {
+        "endM": [
+          1.016,
+          0.4,
+          -4.145
+        ],
+        "startM": [
+          -1.016,
+          0.4,
+          -5.423
+        ]
+      },
+      "family": "partial_occlusion",
+      "sceneId": "held_out-partial_occlusion-16004",
+      "seed": 16004,
+      "split": "held_out"
+    },
+    {
+      "boxes": [],
+      "cable": null,
+      "family": "null",
+      "sceneId": "held_out-null-16001",
+      "seed": 16001,
+      "split": "held_out"
+    },
+    {
+      "boxes": [],
+      "cable": null,
+      "family": "null",
+      "sceneId": "held_out-null-16002",
+      "seed": 16002,
+      "split": "held_out"
+    },
+    {
+      "boxes": [],
+      "cable": null,
+      "family": "null",
+      "sceneId": "held_out-null-16003",
+      "seed": 16003,
+      "split": "held_out"
+    },
+    {
+      "boxes": [],
+      "cable": null,
+      "family": "null",
+      "sceneId": "held_out-null-16004",
+      "seed": 16004,
+      "split": "held_out"
+    },
+    {
+      "boxes": [],
+      "cable": {
+        "endM": [
+          -0.938,
+          0.352,
+          -8.558
+        ],
+        "startM": [
+          -0.938,
+          0.352,
+          -6.558
+        ]
+      },
+      "family": "off_route",
+      "sceneId": "held_out-off_route-16001",
+      "seed": 16001,
+      "split": "held_out"
+    },
+    {
+      "boxes": [],
+      "cable": {
+        "endM": [
+          -1.007,
+          0.389,
+          -9.263
+        ],
+        "startM": [
+          -1.007,
+          0.389,
+          -7.263
+        ]
+      },
+      "family": "off_route",
+      "sceneId": "held_out-off_route-16002",
+      "seed": 16002,
+      "split": "held_out"
+    },
+    {
+      "boxes": [],
+      "cable": {
+        "endM": [
+          1.029,
+          0.201,
+          -7.41
+        ],
+        "startM": [
+          1.029,
+          0.201,
+          -5.41
+        ]
+      },
+      "family": "off_route",
+      "sceneId": "held_out-off_route-16003",
+      "seed": 16003,
+      "split": "held_out"
+    },
+    {
+      "boxes": [],
+      "cable": {
+        "endM": [
+          1.028,
+          0.235,
+          -6.454
+        ],
+        "startM": [
+          1.028,
+          0.235,
+          -4.454
+        ]
+      },
+      "family": "off_route",
+      "sceneId": "held_out-off_route-16004",
+      "seed": 16004,
+      "split": "held_out"
+    }
+  ],
+  "public_reproduction": {
+    "original_protocol_sha256": "51dd8ae7aa238992d3a3e484ea645f4ff88165288735648d722a15ca2dcf7086",
+    "identity": "Portable successor input, not the original frozen protocol. Removes private provenance path and corrects unused arm model labels. Grid, numeric parameters and exposed geometry exclusion list are unchanged."
+  }
+}
