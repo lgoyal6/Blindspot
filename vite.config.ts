@@ -6,6 +6,7 @@ import { defineConfig, type Connect, type Plugin } from "vite";
 /**
  * Entry ownership (docs/CONTRACTS.md):
  *   ui mode     -> ui.html     (Person A fixture preview)
+ *   public mode -> public-demo.html (read-only saved replay)
  *   engine mode -> engine.html (Person B engine harness)
  *   default     -> index.html  (Person C composed app)
  * Each mode builds only its own entry so missing future entries never break
@@ -13,6 +14,7 @@ import { defineConfig, type Connect, type Plugin } from "vite";
  */
 const ENTRY_BY_MODE: Record<string, string> = {
   ui: "ui.html",
+  public: "public-demo.html",
   engine: "engine.html",
 };
 
