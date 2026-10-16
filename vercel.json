@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "VITE_AUTHORING_ENABLED=false npm run build:ui",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/:path*", "destination": "/ui.html" }
+  ]
+}
