@@ -3,6 +3,6 @@
   "buildCommand": "VITE_AUTHORING_ENABLED=false npm run build:ui",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/:path*", "destination": "/ui.html" }
+    { "source": "/(.*)", "destination": "/ui.html" }
   ]
 }
