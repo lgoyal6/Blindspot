@@ -20,7 +20,9 @@ const bridge = createFixtureBridge({
 // Public preview opens on a useful completed sample. Local UI development
 // keeps the fresh-session state so each fixture can still be tested on demand.
 const publicDemo = import.meta.env.VITE_AUTHORING_ENABLED === "false";
-if (publicDemo) bridge.dev.loadPreset("completed-baseline");
+if (publicDemo && bridge.getState().route.kind === "workspace") {
+  bridge.dev.loadPreset("completed-baseline");
+}
 
 const PRESETS: ReadonlyArray<{ name: FixturePresetName; label: string }> = [
   { name: "fresh", label: "Fresh session" },
@@ -68,7 +70,7 @@ function FixturePanel({ state }: { state: AppState }) {
   const [, forceRender] = useState(0);
   const win = window as { __BLINDSPOT_FORCE_NO_WEBGL?: boolean };
   return (
-    <details className="bs-no-print" style={panelStyle} open={publicDemo}>
+    <details className="bs-no-print" style={panelStyle}>
       <summary style={{ cursor: "pointer", fontWeight: 700 }}>
         {publicDemo ? "Sample controls (fixture data)" : "Fixture controls (dev preview only)"}
       </summary>
