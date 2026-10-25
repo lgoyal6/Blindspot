@@ -5,6 +5,8 @@ import { analyticSampler,type SensorFrame } from './sensor';
 import { bindStereoConfig,boundedStereoSampler,createStereoModel,degradeStereoFrame,stereoDepthInterval,validateStereoModel } from './stereo-model';
 import { stereoRangeOracle } from './stereo-oracle';
 import { evaluate } from './evaluate';
+import { cameraPose } from './sensor';
+import { localPoint } from './math';
 
 const config=buildSensorConfig(DEFAULT_MANIFEST,160,1),sensor=config.sensors[0]!;
 const pose={positionM:[0,0,0] as const,orientation:[0,0,0,1] as const};
@@ -25,7 +27,7 @@ describe('bounded disparity model',()=>{
     expect(degradeStereoFrame(plane(1.5),pose,sensor,createStereoModel(60)).points).toHaveLength(0);
     expect(degradeStereoFrame(plane(1.5),pose,sensor,createStereoModel(120)).points).toHaveLength(1);
   });
-  it('accepted planar depths lie inside independently reconstructed intervals and support balls',()=>{
+  it('accepted planar depths lie inside independently reconstructed world-space ray segments',()=>{
     let accepted=0,rejected=0;
     for(const baseline of [60,120])for(let z=0.101;z<12;z+=0.037){
       const interval=stereoDepthInterval(z,sensor,createStereoModel(baseline));
@@ -37,9 +39,18 @@ describe('bounded disparity model',()=>{
       expect(interval.nearM).toBeLessThanOrEqual(z+1e-12);
       expect(interval.farM).toBeGreaterThanOrEqual(z-1e-12);
       const point=degradeStereoFrame(plane(z),pose,sensor,createStereoModel(baseline)).points[0]!;
-      expect(Math.abs(-point.positionM[2]-z)).toBeLessThanOrEqual(point.supportRadiusM!+1e-12);
+      expect(point.depthSegmentM).toBeDefined();
+      expect(-point.depthSegmentM![0][2]).toBeLessThanOrEqual(z+1e-12);
+      expect(-point.depthSegmentM![1][2]).toBeGreaterThanOrEqual(z-1e-12);
     }
     expect(accepted).toBeGreaterThan(40);expect(rejected).toBeGreaterThan(300);
+  });
+  it('keeps off-axis stereo interval endpoints on the camera ray',()=>{
+    const model=createStereoModel(120),frame={...plane(1.5),points:[{positionM:[0.375,0.35,-1.5] as const}]};
+    const point=degradeStereoFrame(frame,pose,sensor,model).points[0]!,camera=cameraPose(pose,sensor);
+    const near=localPoint(point.depthSegmentM![0],camera),far=localPoint(point.depthSegmentM![1],camera);
+    expect(near[0]/-near[2]).toBeCloseTo(0.25,12);expect(far[0]/-far[2]).toBeCloseTo(0.25,12);
+    expect(near[1]).toBeCloseTo(0,12);expect(far[1]).toBeCloseTo(0,12);
   });
   it('the independent disparity-bin range oracle matches acceptance away from bin boundaries',()=>{
     for(const baseline of [60,120]){

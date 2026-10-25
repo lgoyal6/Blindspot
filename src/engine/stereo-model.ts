@@ -12,7 +12,7 @@ import {
   type SensorFrame
 } from './sensor';
 
-export const STEREO_MODEL_VERSION = 'bounded-disparity-3';
+export const STEREO_MODEL_VERSION = 'bounded-disparity-4';
 export const STEREO_DIAGNOSTIC_STEP_M = 0.005;
 export interface StereoModel {
   baselineM: number;
@@ -135,13 +135,12 @@ export function degradeStereoFrame(
     if (!interval) continue;
     const scale = interval.measuredM / projection.depth;
     const measured: Vec3 = [local[0] * scale, local[1] * scale, -interval.measuredM];
-    const rayLength = Math.hypot(local[0] / projection.depth, local[1] / projection.depth, 1);
-    const depthError =
-      rayLength * Math.max(interval.measuredM - interval.nearM, interval.farM - interval.measuredM);
+    const nearPoint:Vec3=[local[0]*interval.nearM/projection.depth,local[1]*interval.nearM/projection.depth,-interval.nearM];
+    const farPoint:Vec3=[local[0]*interval.farM/projection.depth,local[1]*interval.farM/projection.depth,-interval.farM];
     points.push({
       ...point,
       positionM: worldPoint(measured, camera),
-      supportRadiusM: (point.supportRadiusM ?? 0) + depthError
+      depthSegmentM:[worldPoint(nearPoint,camera),worldPoint(farPoint,camera)]
     });
   }
   return {
