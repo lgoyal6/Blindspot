@@ -30,6 +30,10 @@ The opt-in `bounded-disparity-3` model makes the 60/120 mm baseline an actual de
 
 The optional `conservative-v2` controller computes capsule-front clearance from accepted perceived points and their support, then includes the 70 ms sensing/integration horizon before the existing latency and braking terms. Truth geometry remains confined to collision/oracle and false-stop scoring. Model and controller identities are recorded separately. These choices do not establish collision avoidance.
 
+### bounded-disparity-4
+
+The opt-in model is now `bounded-disparity-4`. Each accepted return keeps the near and far points of its disparity interval as a depth segment instead of inflating a support radius, and `conservative-v2` bounds the whole segment, not only its endpoints. Analytic box returns also carry tangential half-extents rotated into world axes. No study has been run on v4. Every v3 row below was recorded with `bounded-disparity-3`, so reproducing those numbers requires the v3 source at `d132403`.
+
 ### Frozen v3 study and adverse results
 
 The v3 protocol was locked before collection after v2 exposed sampling-aliasing and version-identity defects. Three unchanged regression assertions actually failed on v2 and passed after the repair. V2 evidence remains separate: eight visibility disagreements per new-model held-out arm, 24 visible-in-time collisions under conservative control, and 360 versus 84 false-stop events. Those diagnosis-exposed cases are regression evidence for v3.
