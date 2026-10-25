@@ -1,7 +1,7 @@
 import type { HazardInstance, Pose, Scenario, StereoSensor, Vec3 } from '../../shared/contracts';
 import { lerp, localPoint, multiplyQ, rayBox, worldPoint } from './math';
 
-export interface PerceivedPoint { positionM: Vec3; hazardId?: string; supportRadiusM?: number }
+export interface PerceivedPoint { positionM: Vec3; hazardId?: string; supportRadiusM?: number; supportHalfExtentsM?: Vec3; depthSegmentM?: [Vec3,Vec3] }
 export interface SensorFrame { points: PerceivedPoint[]; candidates: string[]; unknown: string[]; method: 'raster'|'analytic_with_occlusion'; stereo?: { accepted: number; rejected: number } }
 export type SampleSensor = (pose: Pose) => SensorFrame;
 export const BOUNDED_SAMPLE_SPACING_M=0.005;
@@ -37,6 +37,21 @@ export function hazardSamples(h: HazardInstance,maxSpacingM=0): Vec3[] {
     if(x!==0||y!==0||z!==0)points.push(worldPoint([x*g.dimensionsM[0],y*g.dimensionsM[1],z*g.dimensionsM[2]],g.pose));
   return points;
 }
+function absRotationExtents(extents:Vec3,q:Pose['orientation']):Vec3 {
+  const [x,y,z,w]=q;
+  const r00=1-2*(y*y+z*z),r01=2*(x*y-z*w),r02=2*(x*z+y*w);
+  const r10=2*(x*y+z*w),r11=1-2*(x*x+z*z),r12=2*(y*z-x*w);
+  const r20=2*(x*z-y*w),r21=2*(y*z+x*w),r22=1-2*(x*x+y*y);
+  return [Math.abs(r00)*extents[0]+Math.abs(r01)*extents[1]+Math.abs(r02)*extents[2],
+    Math.abs(r10)*extents[0]+Math.abs(r11)*extents[1]+Math.abs(r12)*extents[2],
+    Math.abs(r20)*extents[0]+Math.abs(r21)*extents[1]+Math.abs(r22)*extents[2]];
+}
+function boxPatchSupport(point:Vec3,pose:Pose,size:Vec3):Vec3 {
+  const local=localPoint(point,pose),half=size.map(v=>v/2),faces=local.map((v,i)=>Math.abs(Math.abs(v)-half[i]!)<1e-8);
+  const localSupport:[number,number,number]=[0,0,0];
+  for(let normal=0;normal<3;normal++)if(faces[normal])for(let axis=0;axis<3;axis++)if(axis!==normal)localSupport[axis]=Math.max(localSupport[axis]!,size[axis]!/4);
+  return absRotationExtents(localSupport,pose.orientation);
+}
 export function analyticSampler(scenario: Scenario,s: StereoSensor,occluded?: (from: Vec3,to: Vec3,ignoreId: string)=>boolean, cablesOnly=false, boundedSupport=false,maxSpacingM=boundedSupport?BOUNDED_SAMPLE_SPACING_M:0): SampleSensor {
   // Dense-mode inputs are immutable scenario snapshots. Reuse their world-space samples.
   const denseSamples=maxSpacingM>0?new Map(scenario.hazards.map(h=>[h,hazardSamples(h,maxSpacingM)])):null;
@@ -44,9 +59,6 @@ export function analyticSampler(scenario: Scenario,s: StereoSensor,occluded?: (f
     const camera=cameraPose(robot,s),points:PerceivedPoint[]=[],candidates:string[]=[];
     for(const h of scenario.hazards){if(cablesOnly&&h.geometry.kind!=='cable')continue;let ideal=false;
       const g=h.geometry,samples=denseSamples?.get(h)??hazardSamples(h,maxSpacingM);
-      const supportRadiusM=!boundedSupport?0:g.kind==='cable'
-        ? Math.hypot(...g.startM.map((v,i)=>v-g.endM[i]!))/(2*(samples.length-1))+g.diameterM/2
-        : Math.hypot(...g.dimensionsM)/4;
       for(const p of samples){
         const projection=project(localPoint(p,camera),s);if(!projection)continue;
         const blocked=scenario.hazards.some(other=>other.id!==h.id&&other.geometry.kind==='box'&&
@@ -54,7 +66,8 @@ export function analyticSampler(scenario: Scenario,s: StereoSensor,occluded?: (f
         if(blocked||occluded?.(camera.positionM,p,h.id))continue;
         ideal=true;
         if(h.geometry.kind==='cable'&&projectedCableWidth(h.geometry.diameterM,projection.depth,s)<s.minResolvableWidthPx)continue;
-        points.push({positionM:p,hazardId:h.id,...(boundedSupport?{supportRadiusM}:{})});
+        const supportRadiusM=!boundedSupport||g.kind==='box'?0:Math.hypot(...g.startM.map((v,i)=>v-g.endM[i]!))/(2*(samples.length-1))+g.diameterM/2;
+        points.push({positionM:p,hazardId:h.id,...(boundedSupport&&g.kind==='box'?{supportHalfExtentsM:boxPatchSupport(p,g.pose,g.dimensionsM)}:{}),...(supportRadiusM?{supportRadiusM}:{})});
       }
       if(ideal)candidates.push(h.id);
     }
@@ -84,12 +97,18 @@ export function conservativeObstacleClearance(points: PerceivedPoint[],pose: Pos
   let nearest=Infinity;
   for(const point of points){
     const support=point.supportRadiusM??0;
-    if(!Number.isFinite(support)||support<0||!point.positionM.every(Number.isFinite))throw new Error('Invalid perceived point support');
-    const p=localPoint(point.positionM,pose),reach=radius+support;
-    const dy=Math.max(0,radius-p[1],p[1]-(height-radius));
-    const cross=reach*reach-p[0]*p[0]-dy*dy;
-    if(cross<0||p[2]>reach)continue;
-    nearest=Math.min(nearest,-p[2]-Math.sqrt(cross));
+    if(!Number.isFinite(support)||support<0||!point.positionM.every(Number.isFinite)||
+      (point.supportHalfExtentsM&&(!point.supportHalfExtentsM.every(Number.isFinite)||point.supportHalfExtentsM.some(v=>v<0)))||
+      (point.depthSegmentM&&!point.depthSegmentM.every(endpoint=>endpoint.every(Number.isFinite))))throw new Error('Invalid perceived point support');
+    const patchExtents=point.supportHalfExtentsM?absRotationExtents(point.supportHalfExtentsM,[-pose.orientation[0],-pose.orientation[1],-pose.orientation[2],pose.orientation[3]]):[0,0,0] as Vec3;
+    const segment=point.depthSegmentM||[point.positionM,point.positionM],a=localPoint(segment[0],pose),b=localPoint(segment[1],pose);
+    const midpoint:Vec3=[(a[0]+b[0])/2,(a[1]+b[1])/2,(a[2]+b[2])/2];
+    // Bound the entire stereo ray interval, including its interior, with a route-axis box.
+    const extents:Vec3=[patchExtents[0]+Math.abs(a[0]-b[0])/2,patchExtents[1]+Math.abs(a[1]-b[1])/2,patchExtents[2]+Math.abs(a[2]-b[2])/2];
+    const reach=radius+support,dx=Math.max(0,Math.abs(midpoint[0])-extents[0]),dy=Math.max(0,radius-(midpoint[1]+extents[1]),(midpoint[1]-extents[1])-(height-radius));
+    const cross=reach*reach-dx*dx-dy*dy;
+    if(cross<0||midpoint[2]+extents[2]>reach)continue;
+    nearest=Math.min(nearest,-midpoint[2]-extents[2]-Math.sqrt(cross));
   }
   return Number.isFinite(nearest)?nearest:null;
 }
